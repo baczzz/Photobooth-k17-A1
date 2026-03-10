@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>✦ PHOTO BOOTH ✦</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #faf3e8;
+    --warm: #e8d5b7;
+    --terracotta: #c9714a;
+    --dark: #2a1f1a;
+    --pink: #e8a0a0;
+    --sage: #8fab8e;
+    --film: #f5edd8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--dark);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Space Mono', monospace;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  header {
+    width: 100%;
+    text-align: center;
+    padding: 20px 16px 10px;
+    position: relative;
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.6rem, 6vw, 2.2rem);
+    color: var(--cream);
+    letter-spacing: 0.15em;
+    line-height: 1;
+  }
+
+  .logo span {
+    color: var(--terracotta);
+    font-style: italic;
+  }
+
+  .subtitle {
+    font-size: 0.55rem;
+    letter-spacing: 0.4em;
+    color: var(--warm);
+    margin-top: 4px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .deco-line {
+    width: 80px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--terracotta), transparent);
+    margin: 8px auto 0;
+  }
+
+  /* Main layout */
+  .app {
+    width: 100%;
+    max-width: 480px;
+    padding: 10px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Camera section */
+  .camera-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3/4;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #111;
+    border: 2px solid rgba(201,113,74,0.3);
+    box-shadow: 0 0 0 1px rgba(201,113,74,0.1), 0 8px 40px rgba(0,0,0,0.6);
+  }
+
+  .camera-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.2) 100%);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* Viewfinder corners */
+  .vf-corner {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    z-index: 3;
+  }
+  .vf-corner.tl { top: 10px; left: 10px; border-top: 2px solid var(--terracotta); border-left: 2px solid var(--terracotta); }
+  .vf-corner.tr { top: 10px; right: 10px; border-top: 2px solid var(--terracotta); border-right: 2px solid var(--terracotta); }
+  .vf-corner.bl { bottom: 10px; left: 10px; border-bottom: 2px solid var(--terracotta); border-left: 2px solid var(--terracotta); }
+  .vf-corner.br { bottom: 10px; right: 10px; border-bottom: 2px solid var(--terracotta); border-right: 2px solid var(--terracotta); }
+
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* mirror for selfie */
+    display: block;
+  }
+
+  .filter-normal { filter: none; }
+  .filter-warm { filter: sepia(0.4) saturate(1.3) brightness(1.05); }
+  .filter-bw { filter: grayscale(1) contrast(1.1); }
+  .filter-vintage { filter: sepia(0.6) contrast(0.9) brightness(0.95) saturate(0.8); }
+  .filter-fade { filter: saturate(0.7) brightness(1.1) contrast(0.85); }
+
+  /* Countdown overlay */
+  #countdown-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    background: rgba(0,0,0,0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  #countdown-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .countdown-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 8rem;
+    color: white;
+    text-shadow: 0 0 40px rgba(201,113,74,0.8);
+    animation: pulse-num 1s ease-out;
+    line-height: 1;
+  }
+
+  @keyframes pulse-num {
+    0% { transform: scale(1.5); opacity: 0; }
+    30% { transform: scale(1); opacity: 1; }
+    80% { transform: scale(0.95); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0; }
+  }
+
+  /* Flash */
+  #flash {
+    position: absolute;
+    inset: 0;
+    background: white;
+    z-index: 20;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.05s;
+  }
+
+  #flash.flash-on {
+    opacity: 1;
+    transition: none;
+  }
+
+  /* Shot counter */
+  .shot-dots {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 5;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    border: 1px solid rgba(255,255,255,0.5);
+    transition: all 0.3s;
+  }
+
+  .dot.taken {
+    background: var(--terracotta);
+    border-color: var(--terracotta);
+    box-shadow: 0 0 8px rgba(201,113,74,0.6);
+  }
+
+  /* Filters */
+  .filters-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 0;
+    scrollbar-width: none;
+  }
+  .filters-row::-webkit-scrollbar { display: none; }
+
+  .filter-btn {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .filter-preview {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+    background: #333;
+  }
+
+  .filter-btn.active .filter-preview {
+    border-color: var(--terracotta);
+    box-shadow: 0 0 0 2px rgba(201,113,74,0.3);
+  }
+
+  .filter-preview canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .filter-label {
+    font-size: 0.45rem;
+    letter-spacing: 0.1em;
+    color: var(--warm);
+    text-transform: uppercase;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 8px 0;
+  }
+
+  .btn-secondary {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--warm);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    padding: 10px 16px;
+    border-radius: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+  .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .shutter-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--cream);
+    border: 3px solid var(--terracotta);
+    box-shadow: 0 0 0 4px rgba(201,113,74,0.2), 0 4px 20px rgba(0,0,0,0.4);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .shutter-btn::after {
+    content: '';
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--terracotta);
+    transition: all 0.15s;
+  }
+
+  .shutter-btn:active::after { width: 44px; height: 44px; }
+  .shutter-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .shutter-btn.shooting { animation: shutter-pulse 0.3s ease-out; }
+
+  @keyframes shutter-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.92); }
+    100% { transform: scale(1); }
+  }
+
+  /* Film strip */
+  .strip-section {
+    display: none;
+  }
+
+  .strip-section.visible {
+    display: block;
+  }
+
+  .strip-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.3em;
+    color: var(--warm);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    opacity: 0.7;
+    text-align: center;
+  }
+
+  .film-strip {
+    background: var(--film);
+    border-radius: 4px;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+  }
+
+  .film-strip::before, .film-strip::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 18px;
+    background-image: repeating-linear-gradient(90deg, var(--film) 0px, var(--film) 8px, var(--dark) 8px, var(--dark) 16px);
+    opacity: 0.5;
+  }
+  .film-strip::before { top: 0; border-radius: 4px 4px 0 0; }
+  .film-strip::after { bottom: 0; border-radius: 0 0 4px 4px; }
+
+  .strip-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3/4;
+    overflow: hidden;
+    border-radius: 2px;
+    background: #ccc;
+  }
+
+  .strip-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .strip-number {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.5rem;
+    color: rgba(255,255,255,0.6);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  }
+
+  .strip-date {
+    text-align: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 0.75rem;
+    color: var(--dark);
+    opacity: 0.6;
+    margin-top: 4px;
+    font-style: italic;
+    padding: 0 0 8px;
+  }
+
+  /* Download btn */
+  .download-area {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  .btn-download {
+    background: var(--terracotta);
+    color: var(--cream);
+    border: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    padding: 12px 24px;
+    border-radius: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(201,113,74,0.4);
+  }
+
+  .btn-download:hover { background: #b5633e; transform: translateY(-1px); }
+
+  .btn-retake {
+    background: transparent;
+    color: var(--warm);
+    border: 1px solid rgba(255,255,255,0.2);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    padding: 12px 24px;
+    border-radius: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .btn-retake:hover { background: rgba(255,255,255,0.05); }
+
+  /* Status */
+  .status-bar {
+    text-align: center;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: var(--warm);
+    opacity: 0.6;
+    text-transform: uppercase;
+    min-height: 14px;
+  }
+
+  /* Start screen */
+  #start-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--dark);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    gap: 20px;
+    padding: 40px;
+    text-align: center;
+  }
+
+  .start-icon {
+    font-size: 3rem;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .start-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    color: var(--cream);
+    line-height: 1.1;
+  }
+
+  .start-title em { color: var(--terracotta); }
+
+  .start-desc {
+    font-size: 0.65rem;
+    color: var(--warm);
+    letter-spacing: 0.15em;
+    line-height: 1.8;
+    opacity: 0.7;
+    max-width: 280px;
+  }
+
+  .btn-start {
+    background: var(--terracotta);
+    color: var(--cream);
+    border: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    padding: 16px 40px;
+    border-radius: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    box-shadow: 0 4px 30px rgba(201,113,74,0.5);
+    margin-top: 10px;
+    transition: all 0.2s;
+  }
+
+  .permission-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: rgba(201,113,74,0.12);
+    border: 1px solid rgba(201,113,74,0.3);
+    border-radius: 6px;
+    padding: 12px 16px;
+    max-width: 300px;
+    text-align: left;
+  }
+
+  .perm-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+  .perm-text {
+    font-size: 0.6rem;
+    color: var(--warm);
+    letter-spacing: 0.05em;
+    line-height: 1.7;
+    opacity: 0.85;
+  }
+
+  .perm-text strong { color: var(--terracotta); font-weight: 700; }
+
+  .perm-error {
+    background: rgba(220, 80, 60, 0.15);
+    border: 1px solid rgba(220, 80, 60, 0.35);
+    color: #ffb0a0;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    line-height: 1.8;
+    padding: 12px 18px;
+    border-radius: 6px;
+    max-width: 300px;
+    text-align: center;
+  }
+
+  .btn-start:hover { transform: translateY(-2px); box-shadow: 0 6px 35px rgba(201,113,74,0.6); }
+
+  canvas { display: none; }
+
+  /* Hidden video for filter previews */
+  .filter-video-container { display: none; }
+</style>
+</head>
+<body>
+
+<!-- Start Screen -->
+<div id="start-screen">
+  <div class="start-icon">📷</div>
+  <div class="start-title">Photo<br><em>Booth</em></div>
+  <div class="start-desc">
+    CHỤP 4 TẤM LIÊN TIẾP<br>
+    FILTER VINTAGE · FILM GRAIN<br>
+    TẢI VỀ NGAY SAU KHI CHỤP
+  </div>
+  <div class="permission-notice">
+    <div class="perm-icon">🔒</div>
+    <div class="perm-text">App cần quyền truy cập <strong>Camera</strong> của bạn để chụp ảnh. Không có ảnh nào được lưu trên máy chủ.</div>
+  </div>
+  <button class="btn-start" id="start-btn">CHO PHÉP CAMERA &amp; BẮT ĐẦU →</button>
+  <div id="perm-error" class="perm-error" style="display:none">
+    <span>⚠️</span> Không thể truy cập camera.<br>
+    Vui lòng cho phép quyền camera trong cài đặt trình duyệt rồi tải lại trang.
+  </div>
+</div>
+
+<header>
+  <div class="logo">Photo <span>Booth</span></div>
+  <div class="subtitle">✦ film & memory ✦</div>
+  <div class="deco-line"></div>
+</header>
+
+<div class="app">
+
+  <!-- Camera -->
+  <div class="camera-wrapper" id="camera-wrapper">
+    <div class="vf-corner tl"></div>
+    <div class="vf-corner tr"></div>
+    <div class="vf-corner bl"></div>
+    <div class="vf-corner br"></div>
+    <video id="video" autoplay playsinline muted></video>
+    <div id="countdown-overlay">
+      <span class="countdown-num" id="countdown-num">3</span>
+    </div>
+    <div id="flash"></div>
+    <div class="shot-dots">
+      <div class="dot" id="d1"></div>
+      <div class="dot" id="d2"></div>
+      <div class="dot" id="d3"></div>
+      <div class="dot" id="d4"></div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar" id="status">Sẵn sàng chụp · 4 tấm</div>
+
+  <!-- Filters -->
+  <div class="filters-row" id="filters-row">
+    <button class="filter-btn active" data-filter="normal">
+      <div class="filter-preview" id="prev-normal"></div>
+      <span class="filter-label">Normal</span>
+    </button>
+    <button class="filter-btn" data-filter="warm">
+      <div class="filter-preview" id="prev-warm"></div>
+      <span class="filter-label">Warm</span>
+    </button>
+    <button class="filter-btn" data-filter="bw">
+      <div class="filter-preview" id="prev-bw"></div>
+      <span class="filter-label">B&W</span>
+    </button>
+    <button class="filter-btn" data-filter="vintage">
+      <div class="filter-preview" id="prev-vintage"></div>
+      <span class="filter-label">Vintage</span>
+    </button>
+    <button class="filter-btn" data-filter="fade">
+      <div class="filter-preview" id="prev-fade"></div>
+      <span class="filter-label">Fade</span>
+    </button>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn-secondary" id="timer-btn">⏱ 3s</button>
+    <button class="shutter-btn" id="shutter-btn" title="Chụp ảnh"></button>
+    <button class="btn-secondary" id="flip-btn">↔ Cam</button>
+  </div>
+
+  <!-- Strip section -->
+  <div class="strip-section" id="strip-section">
+    <div class="strip-label">✦ your film strip ✦</div>
+    <div class="film-strip" id="film-strip">
+      <!-- photos inserted here -->
+      <div class="strip-date" id="strip-date"></div>
+    </div>
+    <div class="download-area">
+      <button class="btn-retake" id="retake-btn">↺ Chụp lại</button>
+      <button class="btn-download" id="download-btn">↓ Tải về</button>
+    </div>
+  </div>
+
+</div>
+
+<canvas id="main-canvas"></canvas>
+<canvas id="strip-canvas"></canvas>
+
+<script>
+const video = document.getElementById('video');
+const mainCanvas = document.getElementById('main-canvas');
+const stripCanvas = document.getElementById('strip-canvas');
+const ctx = mainCanvas.getContext('2d');
+const sctx = stripCanvas.getContext('2d');
+const shutterBtn = document.getElementById('shutter-btn');
+const timerBtn = document.getElementById('timer-btn');
+const flipBtn = document.getElementById('flip-btn');
+const countdownOverlay = document.getElementById('countdown-overlay');
+const countdownNum = document.getElementById('countdown-num');
+const flash = document.getElementById('flash');
+const statusBar = document.getElementById('status');
+const stripSection = document.getElementById('strip-section');
+const filmStrip = document.getElementById('film-strip');
+const downloadBtn = document.getElementById('download-btn');
+const retakeBtn = document.getElementById('retake-btn');
+const startBtn = document.getElementById('start-btn');
+const startScreen = document.getElementById('start-screen');
+
+let stream = null;
+let facingMode = 'user';
+let currentFilter = 'normal';
+let timerDelay = 3;
+let photos = [];
+let shooting = false;
+let shotCount = 0;
+
+const filterCSS = {
+  normal: 'none',
+  warm: 'sepia(0.4) saturate(1.3) brightness(1.05)',
+  bw: 'grayscale(1) contrast(1.1)',
+  vintage: 'sepia(0.6) contrast(0.9) brightness(0.95) saturate(0.8)',
+  fade: 'saturate(0.7) brightness(1.1) contrast(0.85)'
+};
+
+// Start camera
+async function startCamera() {
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode,
+        width: { ideal: 1080 },
+        height: { ideal: 1440 }
+      },
+      audio: false
+    });
+    video.srcObject = stream;
+    video.style.filter = filterCSS[currentFilter];
+    updateFilterPreviews();
+  } catch (e) {
+    statusBar.textContent = 'Không thể truy cập camera';
+    console.error(e);
+    throw e;
+  }
+}
+
+// Filter previews (colored circles)
+function updateFilterPreviews() {
+  const previewColors = {
+    normal: '#888',
+    warm: '#c9935a',
+    bw: '#555',
+    vintage: '#a08060',
+    fade: '#aab0a8'
+  };
+  Object.keys(previewColors).forEach(f => {
+    const el = document.getElementById('prev-' + f);
+    if (el) {
+      el.style.background = previewColors[f];
+      el.style.boxShadow = `inset 0 0 8px rgba(0,0,0,0.3)`;
+      // Add label icons
+      el.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;filter:${filterCSS[f]}">🌸</div>`;
+    }
+  });
+}
+
+// Capture one photo
+function capturePhoto() {
+  const W = video.videoWidth || 640;
+  const H = video.videoHeight || 853;
+  mainCanvas.width = W;
+  mainCanvas.height = H;
+
+  // Mirror (selfie)
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, -W, 0, W, H);
+  ctx.restore();
+
+  // Apply filter via pixel manipulation
+  applyCanvasFilter(ctx, W, H, currentFilter);
+
+  return mainCanvas.toDataURL('image/jpeg', 0.92);
+}
+
+function applyCanvasFilter(c, w, h, f) {
+  if (f === 'normal') return;
+  const img = c.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i], g = d[i+1], b = d[i+2];
+    if (f === 'warm') {
+      r = Math.min(255, r * 1.08 + 15);
+      g = Math.min(255, g * 1.02 + 5);
+      b = Math.max(0, b * 0.88);
+    } else if (f === 'bw') {
+      const gray = 0.299*r + 0.587*g + 0.114*b;
+      r = g = b = Math.min(255, gray * 1.1);
+    } else if (f === 'vintage') {
+      r = Math.min(255, r * 0.9 + 30);
+      g = Math.min(255, g * 0.85 + 15);
+      b = Math.min(255, b * 0.7 + 10);
+    } else if (f === 'fade') {
+      r = Math.min(255, r * 0.75 + 40);
+      g = Math.min(255, g * 0.75 + 40);
+      b = Math.min(255, b * 0.75 + 40);
+    }
+    d[i] = r; d[i+1] = g; d[i+2] = b;
+  }
+  c.putImageData(img, 0, 0);
+}
+
+// Countdown
+function countdown(sec) {
+  return new Promise(resolve => {
+    if (sec === 0) { resolve(); return; }
+    countdownOverlay.classList.add('active');
+    let n = sec;
+    countdownNum.textContent = n;
+    countdownNum.style.animation = 'none';
+    void countdownNum.offsetWidth;
+    countdownNum.style.animation = 'pulse-num 1s ease-out';
+
+    const iv = setInterval(() => {
+      n--;
+      if (n <= 0) {
+        clearInterval(iv);
+        countdownOverlay.classList.remove('active');
+        resolve();
+        return;
+      }
+      countdownNum.textContent = n;
+      countdownNum.style.animation = 'none';
+      void countdownNum.offsetWidth;
+      countdownNum.style.animation = 'pulse-num 1s ease-out';
+    }, 1000);
+  });
+}
+
+// Flash
+function doFlash() {
+  return new Promise(resolve => {
+    flash.classList.add('flash-on');
+    setTimeout(() => {
+      flash.classList.remove('flash-on');
+      resolve();
+    }, 80);
+  });
+}
+
+// Shoot sequence
+async function shootSequence() {
+  if (shooting) return;
+  shooting = true;
+  photos = [];
+  shotCount = 0;
+  shutterBtn.disabled = true;
+  timerBtn.disabled = true;
+  flipBtn.disabled = true;
+
+  // Reset dots
+  for (let i = 1; i <= 4; i++) document.getElementById('d' + i).classList.remove('taken');
+  stripSection.classList.remove('visible');
+
+  for (let i = 0; i < 4; i++) {
+    statusBar.textContent = `Chuẩn bị tấm ${i + 1} / 4 …`;
+    await countdown(timerDelay);
+    await doFlash();
+    const dataUrl = capturePhoto();
+    photos.push(dataUrl);
+    shotCount++;
+    document.getElementById('d' + shotCount).classList.add('taken');
+    statusBar.textContent = `✓ Tấm ${shotCount} / 4`;
+
+    if (i < 3) await sleep(600);
+  }
+
+  statusBar.textContent = '✦ Film strip đã sẵn sàng ✦';
+  renderStrip();
+  shooting = false;
+  shutterBtn.disabled = false;
+  timerBtn.disabled = false;
+  flipBtn.disabled = false;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Render strip
+function renderStrip() {
+  // Remove old frames
+  const old = filmStrip.querySelectorAll('.strip-frame');
+  old.forEach(e => e.remove());
+
+  const dateEl = document.getElementById('strip-date');
+  const now = new Date();
+  dateEl.textContent = now.toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  photos.forEach((src, i) => {
+    const frame = document.createElement('div');
+    frame.className = 'strip-frame';
+    const img = document.createElement('img');
+    img.src = src;
+    const num = document.createElement('div');
+    num.className = 'strip-number';
+    num.textContent = `0${i+1}`;
+    frame.appendChild(img);
+    frame.appendChild(num);
+    filmStrip.insertBefore(frame, dateEl);
+  });
+
+  stripSection.classList.add('visible');
+  stripSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Download strip as single image
+downloadBtn.addEventListener('click', () => {
+  if (photos.length < 4) return;
+
+  const frameW = 400;
+  const frameH = Math.round(frameW * 4 / 3);
+  const gap = 8;
+  const padH = 40;
+  const padV = 50;
+  const totalH = padV + 4 * frameH + 3 * gap + padV + 50;
+
+  stripCanvas.width = frameW + padH * 2;
+  stripCanvas.height = totalH;
+
+  // Film color
+  sctx.fillStyle = '#f5edd8';
+  sctx.fillRect(0, 0, stripCanvas.width, stripCanvas.height);
+
+  // Sprocket holes
+  const holeW = 14, holeH = 10, holeGap = 20;
+  sctx.fillStyle = '#2a1f1a';
+  for (let y = 0; y < totalH; y += holeH + holeGap) {
+    sctx.beginPath();
+    sctx.roundRect(8, y + 5, holeW, holeH, 2);
+    sctx.fill();
+    sctx.beginPath();
+    sctx.roundRect(stripCanvas.width - 8 - holeW, y + 5, holeW, holeH, 2);
+    sctx.fill();
+  }
+
+  const loadPromises = photos.map(src => new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = src;
+  }));
+
+  Promise.all(loadPromises).then(imgs => {
+    imgs.forEach((img, i) => {
+      const x = padH;
+      const y = padV + i * (frameH + gap);
+      sctx.drawImage(img, x, y, frameW, frameH);
+
+      // Frame number
+      sctx.fillStyle = 'rgba(42,31,26,0.5)';
+      sctx.font = '500 11px "Space Mono", monospace';
+      sctx.textAlign = 'right';
+      sctx.fillText(`0${i+1}`, x + frameW - 6, y + frameH - 6);
+    });
+
+    // Date
+    const now = new Date();
+    sctx.fillStyle = '#2a1f1a';
+    sctx.font = 'italic 14px Georgia, serif';
+    sctx.textAlign = 'center';
+    sctx.globalAlpha = 0.6;
+    sctx.fillText(now.toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' }), stripCanvas.width / 2, totalH - 20);
+    sctx.globalAlpha = 1;
+
+    const link = document.createElement('a');
+    link.download = `photobooth_${Date.now()}.jpg`;
+    link.href = stripCanvas.toDataURL('image/jpeg', 0.92);
+    link.click();
+  });
+});
+
+// Retake
+retakeBtn.addEventListener('click', () => {
+  photos = [];
+  shotCount = 0;
+  for (let i = 1; i <= 4; i++) document.getElementById('d' + i).classList.remove('taken');
+  stripSection.classList.remove('visible');
+  statusBar.textContent = 'Sẵn sàng chụp · 4 tấm';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// Shutter
+shutterBtn.addEventListener('click', () => {
+  shutterBtn.classList.add('shooting');
+  setTimeout(() => shutterBtn.classList.remove('shooting'), 300);
+  shootSequence();
+});
+
+// Timer toggle
+timerBtn.addEventListener('click', () => {
+  const delays = [0, 3, 5, 10];
+  const labels = ['⚡ 0s', '⏱ 3s', '⏱ 5s', '⏱ 10s'];
+  const idx = delays.indexOf(timerDelay);
+  timerDelay = delays[(idx + 1) % delays.length];
+  timerBtn.textContent = labels[(idx + 1) % labels.length];
+});
+
+// Flip camera
+flipBtn.addEventListener('click', () => {
+  if (shooting) return;
+  facingMode = facingMode === 'user' ? 'environment' : 'user';
+  video.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+  startCamera();
+});
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    video.style.filter = filterCSS[currentFilter];
+  });
+});
+
+// Start button
+startBtn.addEventListener('click', async () => {
+  const permError = document.getElementById('perm-error');
+  permError.style.display = 'none';
+  startBtn.textContent = 'Đang yêu cầu quyền camera…';
+  startBtn.classList.add('btn-start-loading');
+  startBtn.disabled = true;
+
+  try {
+    await startCamera();
+    startScreen.style.opacity = '0';
+    startScreen.style.transition = 'opacity 0.4s';
+    setTimeout(() => startScreen.style.display = 'none', 400);
+  } catch (e) {
+    permError.style.display = 'block';
+    startBtn.textContent = 'THỬ LẠI →';
+    startBtn.classList.remove('btn-start-loading');
+    startBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

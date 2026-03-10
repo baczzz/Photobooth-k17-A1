@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoBooth của Bắc 📸</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📸 PhotoBooth Selfie</h1>
+        <p>Camera trước (selfie) sẽ tự mở</p>
+
+        <video id="video" autoplay playsinline></video>
+        
+        <div class="controls">
+            <button id="btnStart" class="btn">Bật Camera Trước</button>
+            <button id="btnCapture" class="btn capture" disabled>📸 Chụp Ảnh</button>
+            <button id="btnDownload" class="btn" disabled>Tải Ảnh Về</button>
+        </div>
+
+        <canvas id="canvas" style="display:none;"></canvas>
+        
+        <div id="gallery" class="gallery">
+            <h3>Ảnh đã chụp</h3>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
